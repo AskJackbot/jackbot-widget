@@ -20,7 +20,7 @@
     // Default configuration
     const defaultConfig = {
       // API Configuration
-      apiEndpoint: 'https://rashaddism.pythonanywhere.com/api/chat', // Updated to match app.py
+      apiEndpoint: 'https://jackbot-widget-backend.onrender.com/api/chat/api/chat', // Updated to match app.py
       apiKey: null, // Required API key for authentication
       model: 'gemini-2.0-flash', // AI model to use
       
