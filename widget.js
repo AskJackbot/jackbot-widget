@@ -585,4 +585,3 @@
     displayMessages(0);
   }
 })(window.chatWidgetConfig || {});
-
