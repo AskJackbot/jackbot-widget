@@ -44,7 +44,13 @@
       
       // External Libraries
       markedJsUrl: 'https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js',
-      tailwindCssUrl: 'https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.16/tailwind.min.css'
+      tailwindCssUrl: 'https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.16/tailwind.min.css',
+
+      // Voice Input Configuration
+      enableVoice: true,
+      voiceAutoSend: true,
+      voiceLanguage: (navigator.language || 'en-US'),
+      voiceInterimResults: true
     };
     
     // Merge provided config with defaults
@@ -195,6 +201,32 @@
         border-radius: 0;
       }
     }
+    /* Microphone button */
+    .mic-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #d1d5db;
+      border-radius: 0.375rem;
+      padding: 0.5rem 0.75rem;
+      background-color: #ffffff;
+      color: #374151;
+      cursor: pointer;
+    }
+    .mic-button:hover {
+      background-color: #f9fafb;
+    }
+    .mic-button.recording {
+      background-color: #fee2e2;
+      border-color: #ef4444;
+      color: #991b1b;
+      animation: mic-pulse 1.2s infinite;
+    }
+    @keyframes mic-pulse {
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+      70% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
     `;
   
     document.head.appendChild(style);
@@ -327,8 +359,14 @@
         </div>
         <div id="chat-messages" class="flex-1 p-4 overflow-y-auto"></div>
         <div id="chat-input-container" class="p-4 border-t border-gray-200">
-          <div class="flex space-x-4 items-center">
+          <div class="flex space-x-2 items-center">
             <input type="text" id="chat-input" class="flex-1 border border-gray-300 rounded-md px-4 py-2 outline-none w-3/4" placeholder="Type your message...">
+            <button id="chat-mic" class="mic-button" title="Voice input" aria-label="Voice input" style="display:none">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 14a3 3 0 003-3V6a3 3 0 10-6 0v5a3 3 0 003 3z"/>
+                <path d="M19 11a1 1 0 10-2 0 5 5 0 11-10 0 1 1 0 10-2 0 7 7 0 0011 5.292V20h-2a1 1 0 100 2h6a1 1 0 100-2h-2v-3.708A7 7 0 0019 11z"/>
+              </svg>
+            </button>
             <button id="chat-submit" class="text-white rounded-md px-4 py-2 cursor-pointer" 
                     style="background-color: ${config.primaryColor}">Send</button>
           </div>
@@ -347,6 +385,12 @@
     const chatPopup = document.getElementById('chat-popup');
     const closePopup = document.getElementById('close-popup');
     const clearHistoryBtn = document.getElementById('clear-history');
+    const chatMic = document.getElementById('chat-mic');
+
+    // Voice recognition runtime state
+    let recognition = null;
+    let isRecording = false;
+    let interimTranscript = '';
   
     // Initialize chat history with welcome message if needed
     chatHistory.initialize();
@@ -385,6 +429,87 @@
         chatInput.focus();
       }
     }
+
+    // Setup voice input if supported and enabled
+    (function setupVoice() {
+      try {
+        if (!config.enableVoice) return;
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+          // No support; quietly do nothing; could show tooltip later
+          return;
+        }
+        recognition = new SpeechRecognition();
+        recognition.lang = config.voiceLanguage || 'en-US';
+        recognition.interimResults = !!config.voiceInterimResults;
+        recognition.continuous = false;
+
+        if (chatMic) {
+          chatMic.style.display = 'inline-flex';
+          chatMic.addEventListener('click', () => {
+            if (isRecording) {
+              try { recognition.stop(); } catch (e) {}
+              return;
+            }
+            startRecording();
+          });
+        }
+
+        recognition.onstart = () => {
+          isRecording = true;
+          if (chatMic) chatMic.classList.add('recording');
+          interimTranscript = '';
+        };
+
+        recognition.onerror = (event) => {
+          isRecording = false;
+          if (chatMic) chatMic.classList.remove('recording');
+          if (event && event.error) {
+            console.warn('Voice recognition error:', event.error);
+          }
+        };
+
+        recognition.onend = () => {
+          isRecording = false;
+          if (chatMic) chatMic.classList.remove('recording');
+          // If there is content, either send or leave in input
+          const text = chatInput.value.trim();
+          if (text && config.voiceAutoSend) {
+            onUserRequest(text);
+          }
+        };
+
+        recognition.onresult = (event) => {
+          let finalTranscript = '';
+          interimTranscript = '';
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+              finalTranscript += transcript;
+            } else {
+              interimTranscript += transcript;
+            }
+          }
+          const combined = [chatInput.value, finalTranscript, interimTranscript].filter(Boolean).join(' ').trim();
+          chatInput.value = combined;
+        };
+
+        function startRecording() {
+          try {
+            interimTranscript = '';
+            recognition.start();
+          } catch (e) {
+            // start can throw if already started; attempt to stop and restart
+            try { recognition.stop(); } catch (e2) {}
+            setTimeout(() => {
+              try { recognition.start(); } catch (e3) { console.warn('Failed to start recognition', e3); }
+            }, 150);
+          }
+        }
+      } catch (err) {
+        console.warn('Voice setup failed', err);
+      }
+    })();
   
     // Also load chat history on window load for safety
     window.addEventListener('load', () => {
@@ -521,7 +646,7 @@
   
     // Function to load and display chat history
     function loadChatHistory() {
-      const history = chatHistory.load();
+      let history = chatHistory.load();
       chatMessages.innerHTML = ''; // Clear existing messages
       
       if (history.length === 0) {
