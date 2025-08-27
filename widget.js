@@ -51,6 +51,14 @@
       voiceAutoSend: true,
       voiceLanguage: (navigator.language || 'en-US'),
       voiceInterimResults: true
+      ,
+      // Text-To-Speech Configuration
+      enableTts: true,
+      ttsAutoSpeak: true,
+      ttsRate: 1.0,
+      ttsPitch: 1.0,
+      ttsVolume: 1.0,
+      ttsVoiceName: null // optional exact voice name match
     };
     
     // Merge provided config with defaults
@@ -163,6 +171,20 @@
       margin: 0.5rem 0;
       color: #4b5563;
     }
+    .tts-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 8px;
+      border: 1px solid #d1d5db;
+      border-radius: 0.375rem;
+      padding: 0.25rem 0.5rem;
+      background-color: #ffffff;
+      color: #374151;
+      cursor: pointer;
+    }
+    .tts-button:hover { background-color: #f9fafb; }
+    .tts-button.playing { background-color: #dbeafe; border-color: #60a5fa; color: #1e40af; }
     /* Citation Styles */
     .citation-list {
       margin-top: 1rem;
@@ -623,25 +645,119 @@
           // Use marked.parse() instead of direct marked() call
           const htmlContent = marked.parse(message);
           
-          replyElement.innerHTML = `
-            <div style="background-color: ${config.secondaryColor}" class="text-black rounded-lg py-2 px-4 max-w-[70%]">
-              <div class="markdown-content">${htmlContent}</div>
-            </div>
-          `;
+          const container = document.createElement('div');
+          container.style.backgroundColor = config.secondaryColor;
+          container.className = 'text-black rounded-lg py-2 px-4 max-w-[70%] flex items-start';
+
+          const contentDiv = document.createElement('div');
+          contentDiv.className = 'markdown-content flex-1';
+          contentDiv.innerHTML = htmlContent;
+
+          const ttsBtn = createTtsButton(message);
+
+          container.appendChild(contentDiv);
+          if (ttsBtn) container.appendChild(ttsBtn);
+
+          replyElement.appendChild(container);
           chatMessages.appendChild(replyElement);
           chatMessages.scrollTop = chatMessages.scrollHeight;
+
+          // Auto-speak if enabled
+          if (config.enableTts && config.ttsAutoSpeak) {
+            speakText(message);
+          }
         } catch (error) {
           console.error('Markdown parsing error:', error);
           // Fallback to plain text if markdown parsing fails
-          replyElement.innerHTML = `
-            <div style="background-color: ${config.secondaryColor}" class="text-black rounded-lg py-2 px-4 max-w-[70%]">
-              <div class="markdown-content">${message}</div>
-            </div>
-          `;
+          const container = document.createElement('div');
+          container.style.backgroundColor = config.secondaryColor;
+          container.className = 'text-black rounded-lg py-2 px-4 max-w-[70%] flex items-start';
+          const contentDiv = document.createElement('div');
+          contentDiv.className = 'markdown-content flex-1';
+          contentDiv.textContent = message;
+          const ttsBtn = createTtsButton(message);
+          container.appendChild(contentDiv);
+          if (ttsBtn) container.appendChild(ttsBtn);
+          replyElement.appendChild(container);
           chatMessages.appendChild(replyElement);
           chatMessages.scrollTop = chatMessages.scrollHeight;
         }
       }
+    }
+
+    // TTS Helpers
+    let ttsVoices = [];
+    function loadVoices() {
+      try {
+        ttsVoices = window.speechSynthesis ? window.speechSynthesis.getVoices() || [] : [];
+      } catch (_) { ttsVoices = []; }
+    }
+    if (window.speechSynthesis) {
+      loadVoices();
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+
+    function pickVoice() {
+      if (!window.speechSynthesis) return null;
+      if (config.ttsVoiceName) {
+        const match = ttsVoices.find(v => v.name === config.ttsVoiceName);
+        if (match) return match;
+      }
+      // Prefer a voice matching language
+      const lang = (config.voiceLanguage || navigator.language || 'en-US').toLowerCase();
+      const byLang = ttsVoices.find(v => (v.lang || '').toLowerCase().startsWith(lang.split('-')[0]));
+      return byLang || ttsVoices[0] || null;
+    }
+
+    function speakText(text) {
+      try {
+        if (!config.enableTts || !window.speechSynthesis) return;
+        window.speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(text);
+        const voice = pickVoice();
+        if (voice) utter.voice = voice;
+        utter.rate = Number(config.ttsRate || 1.0);
+        utter.pitch = Number(config.ttsPitch || 1.0);
+        utter.volume = Number(config.ttsVolume || 1.0);
+        window.speechSynthesis.speak(utter);
+      } catch (e) { console.warn('TTS speak failed', e); }
+    }
+
+    function stopSpeaking() {
+      try {
+        if (!window.speechSynthesis) return;
+        window.speechSynthesis.cancel();
+      } catch (e) {}
+    }
+
+    function createTtsButton(text) {
+      if (!config.enableTts || !window.speechSynthesis) return null;
+      const btn = document.createElement('button');
+      btn.className = 'tts-button';
+      btn.title = 'Play response';
+      btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M3 10v4a1 1 0 001.555.832L9 12.8V11.2L4.555 9.168A1 1 0 003 10z"/><path d="M14 7.05a7 7 0 010 9.9l1.414 1.414a9 9 0 000-12.728L14 7.05z"/><path d="M11 4a11 11 0 010 16l1.414 1.414a13 13 0 000-18.828L11 4z"/></svg>`;
+      btn.addEventListener('click', () => {
+        const isPlaying = btn.classList.contains('playing');
+        if (isPlaying) {
+          stopSpeaking();
+          btn.classList.remove('playing');
+          btn.title = 'Play response';
+        } else {
+          stopSpeaking();
+          speakText(text);
+          btn.classList.add('playing');
+          btn.title = 'Stop';
+          // Try to detect end and reset button style
+          const interval = setInterval(() => {
+            if (!window.speechSynthesis.speaking) {
+              btn.classList.remove('playing');
+              btn.title = 'Play response';
+              clearInterval(interval);
+            }
+          }, 300);
+        }
+      });
+      return btn;
     }
   
     // Function to load and display chat history
