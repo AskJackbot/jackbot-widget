@@ -249,6 +249,21 @@
       70% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
       100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
     }
+    /* Sign language button */
+    .sign-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #d1d5db;
+      border-radius: 0.375rem;
+      padding: 0.5rem 0.75rem;
+      background-color: #ffffff;
+      color: #374151;
+      cursor: pointer;
+    }
+    .sign-button:hover {
+      background-color: #f9fafb;
+    }
     `;
   
     document.head.appendChild(style);
@@ -389,6 +404,7 @@
                 <path d="M19 11a1 1 0 10-2 0 5 5 0 11-10 0 1 1 0 10-2 0 7 7 0 0011 5.292V20h-2a1 1 0 100 2h6a1 1 0 100-2h-2v-3.708A7 7 0 0019 11z"/>
               </svg>
             </button>
+            <button id="chat-sign" class="sign-button" title="Sign language" aria-label="Sign language">ASL</button>
             <button id="chat-submit" class="text-white rounded-md px-4 py-2 cursor-pointer" 
                     style="background-color: ${config.primaryColor}">Send</button>
           </div>
@@ -408,6 +424,7 @@
     const closePopup = document.getElementById('close-popup');
     const clearHistoryBtn = document.getElementById('clear-history');
     const chatMic = document.getElementById('chat-mic');
+    const chatSign = document.getElementById('chat-sign');
 
     // Voice recognition runtime state
     let recognition = null;
@@ -444,6 +461,12 @@
         }
       }
     });
+    
+    if (chatSign) {
+      chatSign.addEventListener('click', () => {
+        alert('Sign language mode is coming soon.');
+      });
+    }
   
     function togglePopup() {
       chatPopup.classList.toggle('hidden');
