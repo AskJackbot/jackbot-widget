@@ -605,7 +605,12 @@
           'X-API-Key': config.apiKey
         },
         body: JSON.stringify({
-          query: message // Send the message as 'query' field as expected by app.py
+          // Send the entire chat history in the 'messages' field
+          // as expected by the backend.
+          messages: chatHistory.load().map(item => ({
+              role: item.isUser ? 'user' : 'assistant',
+              content: item.message
+          }))
         })
       })
       .then(response => {
