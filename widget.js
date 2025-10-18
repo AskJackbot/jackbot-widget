@@ -608,7 +608,7 @@
           // Send the entire chat history in the 'messages' field
           // as expected by the backend.
           messages: chatHistory.load().map(item => ({
-              role: item.isUser ? 'user' : 'assistant',
+              role: item.isUser ? 'user' : 'model', // CRITICAL FIX: 'assistant' changed to 'model'
               content: item.message
           }))
         })
