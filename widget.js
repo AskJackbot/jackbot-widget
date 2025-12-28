@@ -20,7 +20,7 @@
     // Default configuration
     const defaultConfig = {
       // API Configuration
-      apiEndpoint: 'https://jackbot-widget-backend.onrender.com/api/chat/api/chat', // Updated to match app.py
+      apiEndpoint: 'https://jackbot-widget-backend.onrender.com/api/chat',
       apiKey: null, // Required API key for authentication
       model: 'gemini-2.0-flash', // AI model to use
       
@@ -605,7 +605,12 @@
           'X-API-Key': config.apiKey
         },
         body: JSON.stringify({
-          query: message // Send the message as 'query' field as expected by app.py
+          // Backend expects full conversation history in OpenAI-like format:
+          // { messages: [{ role: 'user'|'assistant', content: string }, ...] }
+          messages: chatHistory.load().map(m => ({
+            role: m.isUser ? 'user' : 'assistant',
+            content: m.message
+          }))
         })
       })
       .then(response => {
