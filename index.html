@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Widget Test</title>
+</head>
+<body>
+    <h1>This is a local test page for the widget.</h1>
+    <p>The chat bubble should appear in the corner.</p>
+
+    <script>
+      window.chatWidgetConfig = {
+        apiKey: "59d9b47c17f8491e91e0353551726c07", //cd618a8d-b5ef-4a38-9e13-5ae624eddf75	
+        apiEndpoint: 'http://localhost:5001/api/chat', 
+        title: 'AI Assistant (Local Test)',
+        primaryColor: '#4F46E5',
+      };
+    </script>
+
+    <script src="widget.js"></script>
+
+</body>
+</html>

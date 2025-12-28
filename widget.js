@@ -22,8 +22,8 @@
       // API Configuration
       apiEndpoint: 'https://jackbot-widget-backend.onrender.com/api/chat',
       apiKey: null, // Required API key for authentication
-      model: 'gemini-2.0-flash', // AI model to use
-      
+      model: 'gemini-2.5-flash', // AI model to use
+  
       // UI Configuration
       title: 'AI Assistant',
       titleColor: '#FFFFFF', // Title text color
@@ -39,8 +39,8 @@
       maxMessages: 50,
       
       // AI Configuration (matches admin_app.py structure)
-      temperature: 0.3,
-      maxTokens: 800, // Note: this matches admin_app.py's maxTokens field
+      temperature: 0.2,
+      maxTokens: 1600, // Note: this matches admin_app.py's maxTokens field
       
       // External Libraries
       markedJsUrl: 'https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js',
